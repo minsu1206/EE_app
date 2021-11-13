@@ -30,6 +30,7 @@ class ServerSocket:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((self.TCP_IP, self.TCP_PORT))
         self.sock.listen(1)
+        # self.sock.settimeout(5) # 2초 타임 아웃.
 
         print(u'Server socket [ TCP_IP: ' + self.TCP_IP + ', TCP_PORT: ' + str(self.TCP_PORT) + ' ] is open')
         self.conn, self.addr = self.sock.accept()
@@ -81,6 +82,7 @@ class CameraServerSocket(ServerSocket):
 
         self.receiveThread = threading.Thread(target=self.receiveImages)
         self.receiveThread.start()
+        self.queue = []     # 11 / 13
 
     def receiveImages(self):
         cnt_str = ''
@@ -144,12 +146,15 @@ class CameraServerSocket(ServerSocket):
 
                         # data type list of class -> (results.multi_hand_landmarks)[0] type : mediapipe coord class
                         self.saveData(results.multi_hand_landmarks, results.multi_handedness)  # save point data
+                        self.dataReady = True
+                    else:
+                        self.dataReady = False
                     # cv2.imshow('MediaPipe Hands', cv2.flip(rimage, 1))  # Image show -> hide
                     decimg = rimage
 
                 # cv2.imshow("image", decimg)
-                cv2.imwrite('./' + str(self.TCP_PORT) + '_images' + str(self.folder_num) + '/img' + cnt_str + '.jpg',
-                            decimg)
+                # cv2.imwrite('./' + str(self.TCP_PORT) + '_images' + str(self.folder_num) + '/img' + cnt_str + '.jpg',
+                #             decimg)
                 cv2.waitKey(1)
                 if (cnt == 60 * 10):
                     cnt = 0
@@ -287,10 +292,10 @@ class CameraServerSocket(ServerSocket):
             joints_string = ''
             for i in range(len(hand_joints)):
                 for val in hand_joints[i]:
-                    joints_string += str(val) + ','
+                    joints_string += str(val)[:6] + ','
             string_packet += joints_string + '/'
             string_packet += cls + '/'
-
+        self.queue.append(string_packet)
         return string_packet
 
 
@@ -315,6 +320,7 @@ class UnityServerSocket(ServerSocket):
         super().socketOpen()
         print("UnityServerSocket class init function")
         # todo : setting thread
+
         self.receiveThread = threading.Thread(target=self.sendPoint)
         self.receiveThread.start()
 
@@ -340,16 +346,26 @@ class UnityServerSocket(ServerSocket):
                 rdata = np.frombuffer(base64.b64decode(stringData), np.uint8)
                 '''
 
-                if self.cameraClass.getdataReady():  # todo : data enable
-                    print("test!")
+                if self.cameraClass.getdataReady():
                     # now = time.localtime()
+                    # try:
+                    print("Python ---> Unity :: Succeed at {} frame".format(cnt))
                     stime = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
                     ### 민수 작성 ######
-                    pointdata = self.cameraClass.getData()
-                    for i in range(len(pointdata)):
-                        self.conn.sendall(pointdata[i].encode('utf-8').ljust(64))
+                    send_string = self.cameraClass.getData()
+                    # for i in range(len(pointdata)):
+                    #     send_packet = pointdata[i].encode('utf-8').ljust(64)
+                    #     print(send_packet)      # for debugging
+                    #     self.conn.sendall(pointdata[i].encode('utf-8').ljust(64))
+                    send_packet = send_string.encode('utf-8').ljust(64)
+                    self.conn.sendall(send_packet)
+                    # except socket.timeout:
+                    #     print('Time out')
+                    #     self.cameraClass.queue = [self.cameraClass.queue[-1]]
+                    #     send_packet = self.cameraClass.queue[0].encode('utf-8').ljust(64)
+                    #     self.conn.sendall(send_packet)
                     self.cameraClass.changeDataReady()
-
+                    cnt += 1
                     # ### 재학 작성 ######
                     # pointdata = self.cameraClass.getData()  # todo : get point data
                     # # sdata = np.array(pointdata)
@@ -362,15 +378,16 @@ class UnityServerSocket(ServerSocket):
                     # # cnt += 1
                     # self.cameraClass.changeDataReady()
                 else:
-                    print("test!!")
+                    # print("Python ---> Unity :: Fail / Pass at {} frame".format(cnt))
+                    pass
                     stime = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-                    pointdata = str(0)  # todo : get point data
+                    # pointdata = str(0)  # todo : get point data
                     # sdata = np.array(pointdata)
                     # stringsData = base64.b64encode(sdata)
                     # length = str(len(stringsData))
                     # self.conn.sendall(length.encode('utf-8').ljust(64))
-                    self.conn.sendall(pointdata.encode('utf-8').ljust(64))
+                    # self.conn.sendall(pointdata.encode('utf-8').ljust(64))
                     # self.conn.send(stringsData)
                     # self.conn.send(stime.encode('utf-8').ljust(64))
 
