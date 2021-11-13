@@ -62,11 +62,12 @@ public class UnitySocket : MonoBehaviour
         {
             if (stream.DataAvailable)
             {
-                receivedBuffer = new byte[64];
+                receivedBuffer = new byte[444];
                 stream.Read(receivedBuffer, 0, receivedBuffer.Length);
                 //stream.
-                sTime = Encoding.UTF8.GetString(receivedBuffer, 0, receivedBuffer.Length);
-                Debug.Log(sTime);
+                // sTime = Encoding.UTF8.GetString(receivedBuffer, 0, receivedBuffer.Length);
+                string msg = Encoding.UTF8.GetString(receivedBuffer, 0, receivedBuffer.Length);
+                Debug.Log(msg);
 
                 //stream.Write();
                 /*
