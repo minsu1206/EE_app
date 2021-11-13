@@ -238,38 +238,62 @@ class CameraServerSocket(ServerSocket):
             return None
 
         ## 민수 추가 ####
-        string_packets_joint = []
-        string_packets_cls = []
+        # [1]
+        # string_packets_joint = []
+        # string_packets_cls = []
+        #
+        # for hand_landmarks, hand_cls in zip(self.multi_hand_landmarks, self.multi_handedness):
+        #     hand_joints = np.zeros((21, 3))
+        #     for i, landmark_ in enumerate(hand_landmarks.landmark):
+        #         hand_joints[i, :] = landmark_.x, landmark_.y, landmark_.z
+        #     cls = str(hand_cls.classification._values[0].label)
+        #     # array to bytes.
+        #     # option (1)
+        #     array_packet = hand_joints.tobytes()
+        #
+        #     # option (2)
+        #     joints_string = ''
+        #     for i in range(len(hand_joints)):
+        #         for val in hand_joints[i]:
+        #             joints_string += str(val) + ','
+        #     string_packet_joints = bytes(joints_string, 'utf-
+
+        #     # string_packet_cls = bytes(cls, 'utf-8')
+        #
+        #     # 더 짧게 가능할듯
+        #     if cls == 'Right':
+        #         cls = 'R'
+        #     else:
+        #         cls = 'L'
+        #     string_packet_cls = bytes(str(cls), 'utf-8')
+        #     string_packets_joint.append(string_packet_joints)
+        #     string_packets_cls.append(string_packet_cls)
+        # return string_packets_joint, string_packets_cls
+
+
+        # [2]
+        string_packet = ''
+
         for hand_landmarks, hand_cls in zip(self.multi_hand_landmarks, self.multi_handedness):
             hand_joints = np.zeros((21, 3))
             for i, landmark_ in enumerate(hand_landmarks.landmark):
                 hand_joints[i, :] = landmark_.x, landmark_.y, landmark_.z
             cls = str(hand_cls.classification._values[0].label)
-            # array to bytes.
-            # option (1)
-            array_packet = hand_joints.tobytes()
+            if cls == 'Right':
+                cls = 'R'
+            else:
+                cls = 'L'
 
-            # option (2)
             joints_string = ''
             for i in range(len(hand_joints)):
                 for val in hand_joints[i]:
                     joints_string += str(val) + ','
-            string_packet_joints = bytes(joints_string, 'utf-8')
-            # string_packet_cls = bytes(cls, 'utf-8')
+            string_packet += joints_string + '/'
+            string_packet += cls + '/'
 
-            # 더 짧게 가능할듯
-            if cls == 'Right':
-                cls = 1
-            else:
-                cls = 0
-            string_packet_cls = bytes(str(cls), 'utf-8')
-            string_packets_joint.append(string_packet_joints)
-            string_packets_cls.append(string_packet_cls)
-        # # self.joints = string_packet_joints
-        # self.joints = array_packet
-        # self.cls = string_packet_cls
-        ######
-        return string_packets_joint, string_packets_cls
+        return string_packet
+
+
 
         # ## 재학 작성 #
         # self.cls = str(self.ct)
@@ -321,10 +345,9 @@ class UnityServerSocket(ServerSocket):
                     # now = time.localtime()
                     stime = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
                     ### 민수 작성 ######
-                    pointdata, cls = self.cameraClass.getData()
+                    pointdata = self.cameraClass.getData()
                     for i in range(len(pointdata)):
-                        self.conn.sendall(pointdata[i].ljust(64))
-                        self.conn.sendall(cls[i].ljust(64))
+                        self.conn.sendall(pointdata[i].encode('utf-8').ljust(64))
                     self.cameraClass.changeDataReady()
 
                     # ### 재학 작성 ######
